@@ -1,3 +1,6 @@
 .DS_Store
 *.bak
 *.bak.*
+
+# ローカル引き継ぎ資料(別AI向け・非公開)
+HANDOFF.md
