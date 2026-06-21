@@ -85,7 +85,7 @@ cd cchook-toolparse-recovery
 ```
 
 The installer copies the hook to `~/.claude/hooks/`, makes it executable, installs the default
-leak-token file to `~/.claude/toolparse_recovery.tokens` (only if absent, so your edits are
+leak-token file to `~/.claude/hooks/toolparse_recovery.tokens` (only if absent, so your edits are
 kept), and adds the hook to the `Stop` hooks in `~/.claude/settings.json` (backing the file up
 first, and skipping if already installed). It honours `CLAUDE_CONFIG_DIR` if you use a custom
 config dir.
@@ -104,7 +104,7 @@ To remove it:
    mkdir -p ~/.claude/hooks
    cp toolparse_recovery.sh ~/.claude/hooks/
    chmod +x ~/.claude/hooks/toolparse_recovery.sh
-   cp toolparse_recovery.tokens ~/.claude/        # default leak-token list (optional but recommended)
+   cp toolparse_recovery.tokens ~/.claude/hooks/  # default leak-token list (optional but recommended)
    ```
 
 2. Add it to the `Stop` hooks in `~/.claude/settings.json` (merge with any existing hooks):
@@ -135,13 +135,13 @@ when they appear **alone on a line** — so a token used mid-sentence never trig
 positive. Default path (honours `CLAUDE_CONFIG_DIR`):
 
 ```
-~/.claude/toolparse_recovery.tokens
+~/.claude/hooks/toolparse_recovery.tokens
 ```
 
 Add a newly observed leaked token by appending a line — no need to edit the script:
 
 ```
-# ~/.claude/toolparse_recovery.tokens
+# ~/.claude/hooks/toolparse_recovery.tokens
 court
 county
 course
