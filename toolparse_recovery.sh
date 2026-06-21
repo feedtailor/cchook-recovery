@@ -20,8 +20,8 @@
 # Configurable leak tokens:
 #   The signature (1) token list is read from a config file, one token per line ('#'
 #   comments and blank lines ignored, tokens matched literally / case-insensitively on a
-#   line by themselves). Default path: $CLAUDE_CONFIG_DIR/toolparse_recovery.tokens
-#   (i.e. ~/.claude/toolparse_recovery.tokens). If the file is missing or empty, the
+#   line by themselves). Default path: $CLAUDE_CONFIG_DIR/hooks/toolparse_recovery.tokens
+#   (i.e. ~/.claude/hooks/toolparse_recovery.tokens). If the file is missing or empty, the
 #   built-in defaults below are used. Add new tokens by editing that file -- no need to
 #   touch this script.
 #
@@ -57,7 +57,7 @@ cource
 call'
 
 # Config file with the leak tokens (one per line). See header for the format.
-TOKENS_FILE="${CLAUDE_TOOLPARSE_TOKENS:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/toolparse_recovery.tokens}"
+TOKENS_FILE="${CLAUDE_TOOLPARSE_TOKENS:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/toolparse_recovery.tokens}"
 
 # Build an ERE alternation of leak tokens from the config file, falling back to the
 # built-in defaults. Tokens are treated literally (regex metacharacters are escaped).

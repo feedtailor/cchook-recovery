@@ -14,7 +14,7 @@ CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 HOOKS_DIR="$CONFIG_DIR/hooks"
 SETTINGS="$CONFIG_DIR/settings.json"
 DEST="$HOOKS_DIR/$HOOK_NAME"
-TOKENS_DEST="$CONFIG_DIR/$TOKENS_NAME"
+TOKENS_DEST="$HOOKS_DIR/$TOKENS_NAME"
 
 command -v jq >/dev/null 2>&1 || { echo "error: jq is required (https://jqlang.github.io/jq/)" >&2; exit 1; }
 
