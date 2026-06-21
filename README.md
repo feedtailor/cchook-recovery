@@ -2,8 +2,8 @@
 
 A [Claude Code](https://code.claude.com) **Stop hook** that automatically recovers when the
 model emits a **malformed / unparseable `tool_use` block** — the failure mode where the tool
-never runs, the assistant goes silent mid-task, and a stray token (e.g. `court` / `course` /
-`call`) leaks into the visible text.
+never runs, the assistant goes silent mid-task, and a stray token (e.g. `court` / `county` /
+`course` / `call`) leaks into the visible text.
 
 Instead of you having to notice the stall and manually type *"continue"*, this hook detects
 the corruption at turn end and nudges Claude to retry the interrupted tool call — with a
@@ -15,9 +15,11 @@ Opus 4.7/4.8 intermittently produce a malformed `tool_use` block. The harness re
 whole turn with *"The model's tool call could not be parsed (retry also failed)"*, discarding
 the accompanying text too, so the assistant simply stops. Two observable symptoms:
 
-- a **lone leaked token** on its own line (`court`, `course`, `call`, …) next to orphaned
-  tool arguments (`true`, an integer, `completed`, …); and/or
-- the API-contract violation **`stop_reason: tool_use` with no `tool_use` block**.
+- a **lone leaked token** on its own line (`court`, `county`, `course`, `call`, …) next to
+  orphaned tool arguments (`true`, an integer, `completed`, …); and/or
+- the API-contract violation **`stop_reason: tool_use` with no `tool_use` block**; and/or
+- the harness **giveup line** *"The model's tool call could not be parsed (retry also
+  failed)."* left at the end of the turn.
 
 This is a known, still-open issue. References:
 [#63604](https://github.com/anthropics/claude-code/issues/63604) (malformed tool_use, whole
@@ -29,14 +31,19 @@ response discarded), [#61133](https://github.com/anthropics/claude-code/issues/6
 
 ## How it works
 
-At every `Stop`, the hook reads the last assistant message and triggers if **either**:
+At every `Stop`, the hook reads the last assistant message and triggers if **any** of:
 
-1. **Leaked-token detection** — a known token (`LEAK_WORDS_RE`) appears alone on a line. This
-   is the cheap, empirically reliable fast path. New tokens are trivial to add.
+1. **Leaked-token detection** — a known token appears alone on a line. This is the cheap,
+   empirically reliable fast path. The token list lives in a config file, so new tokens are a
+   one-line edit — no need to touch the script (see [Configuration](#configuration)).
 2. **Structural detection** — the last assistant turn has `stop_reason: tool_use` but contains
    **no** `tool_use` block (cf. #61133). This is token-agnostic: it catches malformed tool_use
    no matter which word leaked, so you don't have to play whack-a-mole. If the transcript
    can't be read, it silently falls back to (1).
+3. **Giveup-line detection** — the whole last message is exactly the harness *"…could not be
+   parsed (retry also failed)."* line **and** `stop_reason: stop_sequence` (the end-of-turn
+   marker the harness appends after its own retry failed). The whole-line + `stop_sequence`
+   guard avoids false positives when that sentence is merely quoted inside a real reply.
 
 On a trigger it returns:
 
@@ -44,7 +51,9 @@ On a trigger it returns:
 { "decision": "block", "reason": "Please continue." }
 ```
 
-which makes Claude resume the interrupted tool call in the same turn.
+which makes Claude resume the interrupted tool call in the same turn. (For the giveup-line
+trigger the `reason` is a slightly longer instruction to redo the tool call in the correct
+format.)
 
 ### Dual safety guard (no infinite loops)
 
@@ -75,9 +84,11 @@ cd cchook-toolparse-recovery
 ./install.sh
 ```
 
-The installer copies the hook to `~/.claude/hooks/`, makes it executable, and adds it to the
-`Stop` hooks in `~/.claude/settings.json` (backing the file up first, and skipping if already
-installed). It honours `CLAUDE_CONFIG_DIR` if you use a custom config dir.
+The installer copies the hook to `~/.claude/hooks/`, makes it executable, installs the default
+leak-token file to `~/.claude/toolparse_recovery.tokens` (only if absent, so your edits are
+kept), and adds the hook to the `Stop` hooks in `~/.claude/settings.json` (backing the file up
+first, and skipping if already installed). It honours `CLAUDE_CONFIG_DIR` if you use a custom
+config dir.
 
 To remove it:
 
@@ -93,6 +104,7 @@ To remove it:
    mkdir -p ~/.claude/hooks
    cp toolparse_recovery.sh ~/.claude/hooks/
    chmod +x ~/.claude/hooks/toolparse_recovery.sh
+   cp toolparse_recovery.tokens ~/.claude/        # default leak-token list (optional but recommended)
    ```
 
 2. Add it to the `Stop` hooks in `~/.claude/settings.json` (merge with any existing hooks):
@@ -115,8 +127,49 @@ After installing, **restart Claude Code or open `/hooks` once** so the new hook 
 
 ## Configuration
 
-- Tune `MAX`, `HARD_MAX`, `BACKOFF_SEC`, and `LEAK_WORDS_RE` at the top of the script.
+### Leak tokens (config file)
+
+Signature (1)'s token list is read from a plain-text file, **one token per line** (`#` comments
+and blank lines ignored). Tokens are matched **literally**, **case-insensitively**, and only
+when they appear **alone on a line** — so a token used mid-sentence never triggers a false
+positive. Default path (honours `CLAUDE_CONFIG_DIR`):
+
+```
+~/.claude/toolparse_recovery.tokens
+```
+
+Add a newly observed leaked token by appending a line — no need to edit the script:
+
+```
+# ~/.claude/toolparse_recovery.tokens
+court
+county
+course
+cource
+call
+yournewtoken
+```
+
+The file is the single source of truth (it **replaces**, not merges with, the defaults). If it
+is missing or empty, the hook falls back to the built-in defaults baked into the script, so
+recovery always works even without the file.
+
+### Other knobs
+
+- Tune `MAX`, `HARD_MAX`, `BACKOFF_SEC` at the top of the script.
 - **Kill switch:** set `CLAUDE_NO_TOOLPARSE_RECOVERY=1` to disable without uninstalling.
+- `CLAUDE_TOOLPARSE_TOKENS=<path>` overrides the token file path.
+- `CLAUDE_TOOLPARSE_LOG=<path>` overrides the log file path (mainly for tests).
+
+### Tests
+
+```sh
+bash test_toolparse_recovery.sh
+```
+
+A self-contained regression suite covering all three signatures, the config-file/fallback
+behaviour, the false-positive guards, and `recovered` logging. It isolates its state in a temp
+config dir, so running it never touches your real `~/.claude`.
 
 ## Logs
 
@@ -126,12 +179,15 @@ Each trigger appends one JSONL line to `~/.claude/logs/toolparse_recovery.log`:
 {"ts":"…","event":"block","session":"…","cwd":"…","count":1,"total":1,"fragment":"call\n…"}
 ```
 
-`event` is `block` (a nudge was sent) or `limit` (gave up). `count` is the per-incident
-consecutive count, `total` the per-session cumulative count. Quick analysis (no `cat` needed):
+`event` is `block` (a nudge was sent), `recovered` (the corruption cleared after one or more
+blocks — a success), or `limit` (gave up at the guard). `count` is the per-incident consecutive
+count, `total` the per-session cumulative count. Quick analysis (no `cat` needed):
 
 ```sh
 jq -r .cwd ~/.claude/logs/toolparse_recovery.log | sort | uniq -c | sort -rn   # by project
 jq 'select(.event=="limit")' ~/.claude/logs/toolparse_recovery.log             # give-ups only
+# success rate = recovered / (recovered + limit)
+jq -r .event ~/.claude/logs/toolparse_recovery.log | sort | uniq -c            # event tally
 ```
 
 ## Known limitation
@@ -152,9 +208,9 @@ and [andylizf/nonstop](https://github.com/andylizf/nonstop). Those decide *"is t
 finished?"* semantically.
 
 What's different here is the **trigger**: this hook detects **protocol-level `tool_use`
-corruption** (leaked tokens / `stop_reason: tool_use` without a tool_use block) and recovers
-with a minimal *"continue"* nudge plus a per-incident + per-session dual cap and backoff. As of
-writing, no existing tool targets that specific failure mode.
+corruption** (leaked tokens / `stop_reason: tool_use` without a tool_use block / the harness
+giveup line) and recovers with a minimal *"continue"* nudge plus a per-incident + per-session
+dual cap and backoff. As of writing, no existing tool targets that specific failure mode.
 
 ## License
 

@@ -8,11 +8,13 @@
 set -euo pipefail
 
 HOOK_NAME="toolparse_recovery.sh"
+TOKENS_NAME="toolparse_recovery.tokens"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 HOOKS_DIR="$CONFIG_DIR/hooks"
 SETTINGS="$CONFIG_DIR/settings.json"
 DEST="$HOOKS_DIR/$HOOK_NAME"
+TOKENS_DEST="$CONFIG_DIR/$TOKENS_NAME"
 
 command -v jq >/dev/null 2>&1 || { echo "error: jq is required (https://jqlang.github.io/jq/)" >&2; exit 1; }
 
@@ -40,7 +42,7 @@ uninstall() {
     | if (.hooks.Stop | length) == 0 then del(.hooks.Stop) else . end
   ' "$SETTINGS" > "$tmp" && mv "$tmp" "$SETTINGS"
   echo "removed $HOOK_NAME from Stop hooks"
-  echo "(left $DEST in place; delete it manually if you want)"
+  echo "(left $DEST and $TOKENS_DEST in place; delete them manually if you want)"
   echo "Open /hooks once or restart Claude Code to reload."
 }
 
@@ -49,6 +51,14 @@ install() {
   cp "$SCRIPT_DIR/$HOOK_NAME" "$DEST"
   chmod +x "$DEST"
   echo "installed hook -> $DEST"
+
+  # Leak-token config file: copy the defaults only if absent, so a customized file is kept.
+  if [ -f "$TOKENS_DEST" ]; then
+    echo "kept existing token file $TOKENS_DEST"
+  else
+    cp "$SCRIPT_DIR/$TOKENS_NAME" "$TOKENS_DEST"
+    echo "installed default token file -> $TOKENS_DEST"
+  fi
 
   [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
 
