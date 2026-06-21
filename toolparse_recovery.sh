@@ -6,7 +6,7 @@
 #   Opus 4.7/4.8 sometimes emit a malformed tool_use block. The harness rejects the whole
 #   turn ("The model's tool call could not be parsed"), so the tool never runs and the
 #   assistant goes silent mid-task. A telltale sign is a stray lone token (e.g. "court" /
-#   "course" / "call") leaking into the visible text alongside orphaned tool arguments.
+#   "county" / "course" / "call") leaking into the visible text alongside orphaned tool arguments.
 #   See GitHub issues anthropics/claude-code#63604 and #61133.
 #
 # What this hook does:
@@ -36,7 +36,7 @@ HARD_MAX=8      # absolute retries per session (runaway guard)
 BACKOFF_SEC=2   # short backoff before nudging; helps if the corruption was transient. 0 disables.
 
 # Known leaked tokens that appear on their own line. Add new ones separated by "|".
-LEAK_WORDS_RE='court|course|cource|call'
+LEAK_WORDS_RE='court|county|course|cource|call'
 
 # Kill switch
 if [ "${CLAUDE_NO_TOOLPARSE_RECOVERY:-0}" = "1" ]; then
