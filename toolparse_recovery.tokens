@@ -1,4 +1,4 @@
-# cchook-toolparse-recovery: leak tokens (one token per line)
+# cchook-recovery: leak tokens (one token per line)
 #
 # When a tool_use turn is dropped as malformed, a stray lone token often leaks into the
 # visible text. If the last assistant message contains any of these tokens on a line by

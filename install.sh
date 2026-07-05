@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installer for cchook-toolparse-recovery.
+# Installer for cchook-recovery.
 #
 #   ./install.sh              install the Stop hook into ~/.claude/settings.json
 #   ./install.sh --uninstall  remove it (the hook script file is left in place)

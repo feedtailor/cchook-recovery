@@ -1,4 +1,4 @@
-# cchook-toolparse-recovery
+# cchook-recovery
 
 A [Claude Code](https://code.claude.com) **Stop hook** that automatically recovers when the
 model emits a **malformed / unparseable `tool_use` block** — the failure mode where the tool
@@ -79,8 +79,8 @@ type *"continue"* manually.
 ### Option A — installer (recommended)
 
 ```sh
-git clone https://github.com/<you>/cchook-toolparse-recovery.git
-cd cchook-toolparse-recovery
+git clone https://github.com/feedtailor/cchook-recovery.git
+cd cchook-recovery
 ./install.sh
 ```
 
