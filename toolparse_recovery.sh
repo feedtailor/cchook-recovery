@@ -1,5 +1,5 @@
 #!/bin/bash
-# cchook-toolparse-recovery
+# cchook-recovery
 # A Claude Code "Stop" hook that auto-recovers from malformed / unparseable tool_use turns.
 #
 # Background:
